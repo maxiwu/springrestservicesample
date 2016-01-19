@@ -19,7 +19,7 @@ public class WebappConfig extends WebMvcConfigurerAdapter {
 	// do not need view resolver for REST api
 
 	// register the custom message converter
-	@Override
+/*	@Override
 	public void extendMessageConverters(
 			List<HttpMessageConverter<?>> converters) {
 		
@@ -27,7 +27,16 @@ public class WebappConfig extends WebMvcConfigurerAdapter {
 		//super.extendMessageConverters(converters);
 		//converters.add(0, new MongoMessageConverter());
 		converters.add(new MongoMessageConverter());
+	}*/
+	
+	
+	@Override
+	public void configureMessageConverters(
+			List<HttpMessageConverter<?>> converters) {
+		
+		
+		//super.extendMessageConverters(converters);
+		//converters.add(0, new MongoMessageConverter());
+		converters.add(new MongoMessageConverter());
 	}
-	
-	
 }

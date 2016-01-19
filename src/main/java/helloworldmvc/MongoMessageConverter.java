@@ -20,16 +20,21 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.util.JSON;
 
-public class MongoMessageConverter implements HttpMessageConverter<DBObject> {
+public class MongoMessageConverter implements HttpMessageConverter<Object> {
 
 	@Override
 	public boolean canRead(Class<?> aClass, MediaType mediaType) {
-		return DBObject.class.isAssignableFrom(aClass);		
+		boolean isGeneric = DBObject.class.isAssignableFrom(aClass);
+		boolean isCollection = List.class.isAssignableFrom(aClass);
+		return (isGeneric || isCollection);		
 	}
 
 	@Override
 	public boolean canWrite(Class<?> aClass, MediaType mediaType) {
-		return DBObject.class.isAssignableFrom(aClass);				
+		//return DBObject.class.isAssignableFrom(aClass);
+		boolean isGeneric = DBObject.class.isAssignableFrom(aClass);
+		boolean isCollection = List.class.isAssignableFrom(aClass);
+		return (isGeneric || isCollection);		
 	}
 
 	@Override
@@ -40,7 +45,7 @@ public class MongoMessageConverter implements HttpMessageConverter<DBObject> {
 	}
 
 	@Override
-	public DBObject read(Class<? extends DBObject> aClass,
+	public DBObject read(Class<?> aClass,
 			HttpInputMessage httpInputMessage) throws IOException,
 			HttpMessageNotReadableException {
 		Object object = JSON.parse(readToEnd(httpInputMessage.getBody()));
@@ -52,10 +57,12 @@ public class MongoMessageConverter implements HttpMessageConverter<DBObject> {
 	}
 
 	@Override
-	public void write(DBObject dbObject, MediaType mediaType,
+	public void write(Object o, MediaType mediaType,
 			HttpOutputMessage httpOutputMessage) throws IOException,
 			HttpMessageNotWritableException {
-		httpOutputMessage.getBody().write(dbObject.toString().getBytes());
+		//o could be DBObject or List<DBObject>
+		// do not need to know, call toString() anyway
+		httpOutputMessage.getBody().write(o.toString().getBytes());
 	}
 
 	protected String readToEnd(InputStream is) throws IOException {
