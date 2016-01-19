@@ -1,4 +1,5 @@
-helloworldmvc/WebappConfig.class
-helloworldmvc/HomeController.class
-helloworldmvc/RequestBodyWrapper.class
-helloworldmvc/WebappInitializer.class
+helloworldmvc\WebappConfig.class
+helloworldmvc\WebappInitializer.class
+helloworldmvc\HomeController.class
+helloworldmvc\RequestBodyWrapper.class
+helloworldmvc\SpringMongoConfig.class
