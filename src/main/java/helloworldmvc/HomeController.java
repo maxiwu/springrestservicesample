@@ -30,6 +30,7 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.WriteResult;
+import com.mongodb.util.JSON;
 
 @RestController
 @RequestMapping("/rest")
@@ -50,6 +51,7 @@ public class HomeController {
 	public DBObject mongoSaveObject(@PathVariable String className,
 			@RequestBody DBObject dbo) {
 
+		System.out.println("POST recieve");
 		try {
 			MongoClient mongoClient = getMongoClient();
 			DB db = mongoClient.getDB(DB_NAME);
@@ -58,6 +60,8 @@ public class HomeController {
 			ObjectId id = new ObjectId();
 			dbo.put("_id", id);
 
+			//should have check the structure of the JSON, parse don't allow different structure in 1 class
+			
 			// just like table without schema, group JSON together, like class
 			// name in parse object
 			DBCollection cc = db.getCollection(className);
@@ -74,7 +78,7 @@ public class HomeController {
 	@ResponseBody
 	public DBObject mongoFindService(@PathVariable String className,
 			@PathVariable String objectId) {
-
+		//System.out.println("GET recieve");
 		try {
 			MongoClient mongoClient = getMongoClient();
 			DB db = mongoClient.getDB(DB_NAME);
@@ -96,6 +100,7 @@ public class HomeController {
 	@ResponseBody
 	public List<DBObject> mongoQueryService(@PathVariable String className,
 			@RequestBody(required = false) DBObject query) {
+		System.out.println("GET recieve");
 		try {
 			System.out.println("query request reicieved");
 			MongoClient mongoClient = getMongoClient();
@@ -129,18 +134,24 @@ public class HomeController {
 	public DBObject mongoUpdateService(@PathVariable String className,
 			@PathVariable String objectId, @RequestBody DBObject dbo) {
 
+		
+		/*!!!!Parse check for type and update a field
+		but MONGO just replace the whole object!!!*/
+		
 		try {
 			MongoClient mongoClient = getMongoClient();
 			DB db = mongoClient.getDB(DB_NAME);
 
 			DBCollection cc = db.getCollection(className);
-			// DBObject dbo = cc.findOne(new ObjectId(objectId));
-			// BasicDBObject newDocument = new BasicDBObject();
-			// newDocument.put("clients", 110);
-
+			
 			BasicDBObject searchQuery = new BasicDBObject().append("_id",
 					new ObjectId(objectId));
-			WriteResult wresult = cc.update(searchQuery, dbo);
+			String updateCmd = String.format("{$set:%s}",dbo.toString());
+			
+			//should parse the command, use $exists to update only if field exists
+			
+			DBObject updateObj = (DBObject) JSON.parse(updateCmd);
+			WriteResult wresult = cc.update(searchQuery, updateObj);
 
 			// parse has a timestamp updateAt
 

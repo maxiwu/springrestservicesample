@@ -76,7 +76,7 @@ public class MongoMessageConverter implements HttpMessageConverter<Object> {
 			if(result.startsWith(queryStart))
 			{
 				result = result.substring(queryStart.length());
-				System.out.println(result);
+				//System.out.println(result);
 			}
 			
 			return result;
