@@ -1,6 +1,7 @@
 package helloworldmvc;
 
 import java.lang.reflect.Type;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEvent;
@@ -8,6 +9,8 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Headers;
 import org.springframework.integration.annotation.IntegrationComponentScan;
 import org.springframework.integration.annotation.MessageEndpoint;
 import org.springframework.integration.annotation.MessagingGateway;
@@ -15,6 +18,7 @@ import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.annotation.Transformer;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.config.EnableIntegration;
+import org.springframework.integration.ip.IpHeaders;
 import org.springframework.integration.ip.tcp.TcpInboundGateway;
 import org.springframework.integration.ip.tcp.TcpOutboundGateway;
 import org.springframework.integration.ip.tcp.connection.AbstractClientConnectionFactory;
@@ -25,89 +29,109 @@ import org.springframework.integration.ip.tcp.connection.TcpNetClientConnectionF
 import org.springframework.integration.ip.tcp.connection.TcpNetServerConnectionFactory;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.MessageHeaders;
 
 @EnableIntegration
 @IntegrationComponentScan
 @Configuration
 @PropertySource("classpath:/config.properties")
-public class IntegrationConfig implements ApplicationListener<TcpConnectionEvent> {
-    @Value("${listen.port:8000}")
-    private int port;
+public class IntegrationConfig implements
+		ApplicationListener<TcpConnectionEvent> {
+	@Value("${listen.port:8000}")
+	private int port;
 
-    @MessagingGateway(defaultRequestChannel="toTcp")
-    public interface Gateway {
+	@MessagingGateway(defaultRequestChannel = "toTcp")
+	public interface Gateway {
 
-        String viaTcp(String in);
+		String viaTcp(String in);
 
-    }
+	}
 
-    @Bean
-    @ServiceActivator(inputChannel="toTcp")
-    public MessageHandler tcpOutGate(AbstractClientConnectionFactory connectionFactory) {
-        TcpOutboundGateway gate = new TcpOutboundGateway();
-        //is this client connect factory?
-        gate.setConnectionFactory(connectionFactory);
-        gate.setOutputChannelName("resultToString");        
-        return gate;
-    }
+	@Bean
+	@ServiceActivator(inputChannel = "toTcp")
+	public MessageHandler tcpOutGate(
+			AbstractClientConnectionFactory connectionFactory) {
+		TcpOutboundGateway gate = new TcpOutboundGateway();
+		// is this client connect factory?
+		gate.setConnectionFactory(connectionFactory);
+		gate.setOutputChannelName("resultToString");
+		return gate;
+	}
 
-    @Bean
-    public TcpInboundGateway tcpInGate(AbstractServerConnectionFactory connectionFactory)  {
-        TcpInboundGateway inGate = new TcpInboundGateway();
-        inGate.setConnectionFactory(connectionFactory);
-        inGate.setRequestChannel(fromTcp());
-        return inGate;
-    }
+	@Bean
+	public TcpInboundGateway tcpInGate(
+			AbstractServerConnectionFactory connectionFactory) {
+		TcpInboundGateway inGate = new TcpInboundGateway();
+		inGate.setConnectionFactory(connectionFactory);
+		inGate.setRequestChannel(fromTcp());
+		return inGate;
+	}
 
-    @Bean
-    public MessageChannel fromTcp() {
-        return new DirectChannel();
-    }
+	@Bean
+	public MessageChannel fromTcp() {
+		return new DirectChannel();
+	}
 
-    @MessageEndpoint
-    public static class Echo { 
+	@MessageEndpoint
+	public static class Echo {
 
-        @Transformer(inputChannel="fromTcp", outputChannel="toEcho")
-        public String convert(byte[] bytes) {
-        	
-        	for(byte b : bytes)
-        	{
-        		System.out.print(String.format("%02X ", b));
-        	}
-        	
-            return new String(bytes);
-        }
+		@Transformer(inputChannel = "fromTcp", outputChannel = "toEcho")
+		public String convert(byte[] bytes) {
 
-        @ServiceActivator(inputChannel="toEcho")
-        public String upCase(String in) {
-        	System.out.println(in);
-            return in.toUpperCase();
-        }
+			for (byte b : bytes) {
+				System.out.print(String.format("%02X ", b));
+			}
 
-        @Transformer(inputChannel="resultToString")
-        public String convertResult(byte[] bytes) {
-            return new String(bytes);
-        }
+			return new String(bytes);
+		}
 
-    }
+		@ServiceActivator(inputChannel = "toEcho")
+		public String upCase(String in, @Headers MessageHeaders tcpHeaders) {
 
-    @Bean
-    public AbstractClientConnectionFactory clientCF() {
-    	System.out.println("binding port "+this.port);
-        return new TcpNetClientConnectionFactory("localhost", this.port);
-    }
+			String ip_addr = (String) tcpHeaders.get(IpHeaders.IP_ADDRESS);
+			if (tcpHeaders.containsKey(IpHeaders.REMOTE_PORT)) {
+				int remote_port = (int) tcpHeaders.get(IpHeaders.REMOTE_PORT);
+				System.out.println(String.format("client %s:%d", ip_addr,
+						remote_port));
+			}
+			if (tcpHeaders.containsKey(IpHeaders.PORT)) {
+				int local_port = (int) tcpHeaders.get(IpHeaders.PORT);
+				System.out.println(String.format("server %d", local_port));
+			}
 
-    @Bean
-    public AbstractServerConnectionFactory serverCF() { 
-        return new TcpNetServerConnectionFactory(this.port);
-    }
+			/*
+			 * for (Object key : tcpHeaders.keySet()) { System.out.println(key +
+			 * " : " + tcpHeaders.get(key)); }
+			 */
+			System.out.println(in);
+			return in.toUpperCase();
+		}
+
+		@Transformer(inputChannel = "resultToString")
+		public String convertResult(byte[] bytes) {
+			return new String(bytes);
+		}
+
+	}
+
+	@Bean
+	public AbstractClientConnectionFactory clientCF() {
+		System.out.println("binding port " + this.port);
+		return new TcpNetClientConnectionFactory("localhost", this.port);
+	}
+
+	@Bean
+	public AbstractServerConnectionFactory serverCF() {
+		return new TcpNetServerConnectionFactory(this.port);
+	}
 
 	@Override
 	public void onApplicationEvent(TcpConnectionEvent tcpEvent) {
 		// TODO Auto-generated method stub
 		TcpConnection source = (TcpConnection) tcpEvent.getSource();
-		
-		System.out.println(String.format("%s:%s", source.getHostAddress(), source.getPort()));		
+
+		// System.out.println(String.format("%s:%s", source.getHostAddress(),
+		// source.getPort()));
 	}
 
 }
