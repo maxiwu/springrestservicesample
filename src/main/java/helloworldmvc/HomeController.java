@@ -8,12 +8,17 @@ import java.util.Date;
 import java.util.List;
 
 import org.bson.types.ObjectId;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.SimpleMongoDbFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.integration.core.MessagingTemplate;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.support.GenericMessage;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,40 +41,55 @@ import com.mongodb.util.JSON;
 @RequestMapping("/rest")
 public class HomeController {
 
-	private MongoClient getMongoClient() throws UnknownHostException {
+	/*private MongoClient getMongoClient() throws UnknownHostException {
 		
 
 		String mongoUri = "mongodb://127.0.0.1:27017/";
 
 		return new MongoClient(new MongoClientURI(mongoUri));
-	}
+	}*/
+	
+	@Autowired
+	MongoClient mongoClient;
 
 	final String DB_NAME = "pass";
 
+	@Autowired
+	MessageChannel invokeChannel;
+	@RequestMapping(value="/invoke/{payload}")
+	@ResponseBody
+	public ResponseEntity<String> sayHello(@PathVariable String payload)
+	{
+		//trigger gateway to send a message		
+		MessagingTemplate template = new MessagingTemplate();		
+		try {
+			template.send(invokeChannel, new GenericMessage<String>(payload));
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			//e.printStackTrace();
+		}		
+	    return new ResponseEntity<String>(payload, HttpStatus.OK);
+	}
+	
 	@RequestMapping(value = "/1/classes/{className}", method = RequestMethod.POST)
 	@ResponseBody
 	public DBObject mongoSaveObject(@PathVariable String className,
 			@RequestBody DBObject dbo) {
 
 		System.out.println("POST recieve");
-		try {
-			MongoClient mongoClient = getMongoClient();
-			DB db = mongoClient.getDB(DB_NAME);
+		//MongoClient mongoClient = getMongoClient();
+		DB db = mongoClient.getDB(DB_NAME);
 
-			// add id before insert
-			ObjectId id = new ObjectId();
-			dbo.put("_id", id);
+		// add id before insert
+		ObjectId id = new ObjectId();
+		dbo.put("_id", id);
 
-			//should have check the structure of the JSON, parse don't allow different structure in 1 class
-			
-			// just like table without schema, group JSON together, like class
-			// name in parse object
-			DBCollection cc = db.getCollection(className);
-			cc.insert(dbo);
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		//should have check the structure of the JSON, parse don't allow different structure in 1 class
+		
+		// just like table without schema, group JSON together, like class
+		// name in parse object
+		DBCollection cc = db.getCollection(className);
+		cc.insert(dbo);
 
 		return dbo;
 	}
@@ -78,22 +98,14 @@ public class HomeController {
 	@ResponseBody
 	public DBObject mongoFindService(@PathVariable String className,
 			@PathVariable String objectId) {
-		//System.out.println("GET recieve");
-		try {
-			MongoClient mongoClient = getMongoClient();
-			DB db = mongoClient.getDB(DB_NAME);
+		//MongoClient mongoClient = getMongoClient();
+		DB db = mongoClient.getDB(DB_NAME);
 
-			DBCollection cc = db.getCollection(className);
-			// if object id is not correct, it return 503
-			DBObject dbo = cc.findOne(new ObjectId(objectId));
+		DBCollection cc = db.getCollection(className);
+		// if object id is not correct, it return 503
+		DBObject dbo = cc.findOne(new ObjectId(objectId));
 
-			return dbo;
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			System.out.println(e.getMessage());
-			e.printStackTrace();
-			return null;
-		}
+		return dbo;
 	}
 
 	@RequestMapping(value = "/1/classes/{className}", method = RequestMethod.GET)
@@ -101,32 +113,25 @@ public class HomeController {
 	public List<DBObject> mongoQueryService(@PathVariable String className,
 			@RequestBody(required = false) DBObject query) {
 		System.out.println("GET recieve");
-		try {
-			System.out.println("query request reicieved");
-			MongoClient mongoClient = getMongoClient();
-			DB db = mongoClient.getDB(DB_NAME);
+		System.out.println("query request reicieved");
+		//MongoClient mongoClient = getMongoClient();
+		DB db = mongoClient.getDB(DB_NAME);
 
-			DBCollection cc = db.getCollection(className);
+		DBCollection cc = db.getCollection(className);
 
-			List<DBObject> list = null;
-			DBCursor dbc = null;
-			if (query == null) {
-				// return all result
-				dbc = cc.find();
-			} else {
-				// if object id is not correct, it return 503
-				dbc = cc.find(query);
-			}
-			list = dbc.toArray();
-			dbc.close();
-
-			return list;
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			System.out.println(e.getMessage());
-			e.printStackTrace();
-			return null;
+		List<DBObject> list = null;
+		DBCursor dbc = null;
+		if (query == null) {
+			// return all result
+			dbc = cc.find();
+		} else {
+			// if object id is not correct, it return 503
+			dbc = cc.find(query);
 		}
+		list = dbc.toArray();
+		dbc.close();
+
+		return list;
 	}
 
 	@RequestMapping(value = "/1/classes/{className}/{objectId}", method = RequestMethod.PUT)
@@ -138,29 +143,23 @@ public class HomeController {
 		/*!!!!Parse check for type and update a field
 		but MONGO just replace the whole object!!!*/
 		
-		try {
-			MongoClient mongoClient = getMongoClient();
-			DB db = mongoClient.getDB(DB_NAME);
+		//MongoClient mongoClient = getMongoClient();
+		DB db = mongoClient.getDB(DB_NAME);
 
-			DBCollection cc = db.getCollection(className);
-			
-			BasicDBObject searchQuery = new BasicDBObject().append("_id",
-					new ObjectId(objectId));
-			String updateCmd = String.format("{$set:%s}",dbo.toString());
-			
-			//should parse the command, use $exists to update only if field exists
-			
-			DBObject updateObj = (DBObject) JSON.parse(updateCmd);
-			WriteResult wresult = cc.update(searchQuery, updateObj);
+		DBCollection cc = db.getCollection(className);
+		
+		BasicDBObject searchQuery = new BasicDBObject().append("_id",
+				new ObjectId(objectId));
+		String updateCmd = String.format("{$set:%s}",dbo.toString());
+		
+		//should parse the command, use $exists to update only if field exists
+		
+		DBObject updateObj = (DBObject) JSON.parse(updateCmd);
+		WriteResult wresult = cc.update(searchQuery, updateObj);
 
-			// parse has a timestamp updateAt
+		// parse has a timestamp updateAt
 
-			return dbo;
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return null;
-		}
+		return dbo;
 	}
 
 	@RequestMapping(value = "/1/classes/{className}/{objectId}", method = RequestMethod.DELETE)
@@ -168,21 +167,15 @@ public class HomeController {
 	public String mongoDelService(@PathVariable String className,
 			@PathVariable String objectId) {
 
-		try {
-			MongoClient mongoClient = getMongoClient();
-			DB db = mongoClient.getDB(DB_NAME);
+		//MongoClient mongoClient = getMongoClient();
+		DB db = mongoClient.getDB(DB_NAME);
 
-			DBCollection cc = db.getCollection(className);
-			BasicDBObject searchQuery = new BasicDBObject().append("_id",
-					new ObjectId(objectId));
-			WriteResult wresult = cc.remove(searchQuery);
+		DBCollection cc = db.getCollection(className);
+		BasicDBObject searchQuery = new BasicDBObject().append("_id",
+				new ObjectId(objectId));
+		WriteResult wresult = cc.remove(searchQuery);
 
-			return wresult.getN() + " record removed.";
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return null;
-		}
+		return wresult.getN() + " record removed.";
 	}
 
 

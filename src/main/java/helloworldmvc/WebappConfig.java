@@ -1,5 +1,6 @@
 package helloworldmvc;
 
+import java.net.UnknownHostException;
 import java.util.List;
 
 import org.springframework.context.annotation.Bean;
@@ -12,6 +13,8 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 
 import com.mongodb.DBObject;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
 
 @EnableWebMvc
 @Configuration
@@ -36,11 +39,15 @@ public class WebappConfig extends WebMvcConfigurerAdapter {
 	}
 
 	@Override
-	public void configureMessageConverters(
+	public void extendMessageConverters(
 			List<HttpMessageConverter<?>> converters) {
-
-		// super.extendMessageConverters(converters);
-		// converters.add(0, new MongoMessageConverter());
-		converters.add(new MongoMessageConverter());
+		converters.add(0,new MongoMessageConverter());		
+	}
+	
+	@Bean
+	public MongoClient dbStore() throws UnknownHostException
+	{
+		String mongoUri = "mongodb://127.0.0.1:27017/";
+		return new MongoClient(new MongoClientURI(mongoUri));
 	}
 }
