@@ -57,6 +57,7 @@ public class IntegrationConfig implements
 	@Value("${listen.port:8000}")
 	private int port;
 
+	//could use in-memory too
 	@Autowired
 	MongoClient dbStore;
 	final String DB_NAME = "pass";
@@ -95,15 +96,19 @@ public class IntegrationConfig implements
 	}
 
 	// MessageHeaders staticheader;
-	@ServiceActivator(inputChannel = "toCollaborate", outputChannel = "toTcp", requiresReply="false")
+	@ServiceActivator(inputChannel = "toCollaborate", requiresReply="false")
 	public Message<String> handleTcpMessage(Message<String> jsonMsg) {
 		// save the header, collaborate to output channel
 		MessageHeaders header = jsonMsg.getHeaders();
 		// parse payload to JSON
 
 		DB db = dbStore.getDB(DB_NAME);
-		// DBObject dbo = new BasicDBObject();
+		
+		//should look up database, delete duplicate or update timestamp
+		/*BasicDBObject searchQuery = new BasicDBObject().append("installationId",
+				payload);*/
 		DBObject dbo = (DBObject) JSON.parse(jsonMsg.getPayload());
+		DBObject searchQuery = (DBObject) JSON.parse(jsonMsg.getPayload());
 		Iterator it = header.entrySet().iterator();
 		while (it.hasNext()) {
 			Map.Entry pair = (Map.Entry) it.next();
@@ -111,7 +116,8 @@ public class IntegrationConfig implements
 		}
 
 		DBCollection cc = db.getCollection(DB_COLLECTIONNAME);
-		cc.insert(dbo);
+		//use upsert, installationId as search clause
+		cc.update(searchQuery, dbo, true, false);
 
 		return jsonMsg;
 	}

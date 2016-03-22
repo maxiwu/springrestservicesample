@@ -47,7 +47,8 @@ public class WebappConfig extends WebMvcConfigurerAdapter {
 	@Bean
 	public MongoClient dbStore() throws UnknownHostException
 	{
-		String mongoUri = "mongodb://127.0.0.1:27017/";
+		//String mongoUri = "mongodb://127.0.0.1:27017/";
+		String mongoUri = "mongodb://maxi:12345@ec2-52-90-237-34.compute-1.amazonaws.com:27017/";
 		return new MongoClient(new MongoClientURI(mongoUri));
 	}
 }

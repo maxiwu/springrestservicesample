@@ -1,5 +1,8 @@
-helloworldmvc\WebappConfig.class
+helloworldmvc\Mongo2MessageConverter.class
+helloworldmvc\MongoMessageConverter.class
+helloworldmvc\IntegrationConfig.class
 helloworldmvc\WebappInitializer.class
-helloworldmvc\HomeController.class
 helloworldmvc\RequestBodyWrapper.class
+helloworldmvc\WebappConfig.class
+helloworldmvc\HomeController.class
 helloworldmvc\SpringMongoConfig.class
